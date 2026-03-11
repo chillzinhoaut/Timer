@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      margin: 0;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Montserrat', sans-serif;
+      color: #ffffff;
+      text-align: center;
+    }
+
+    .container {
+      display: inline-block;
+      filter: drop-shadow(0px 8px 4px rgba(0, 0, 0, 0.4));
+    }
+
+    /* Erste Zeile: Basisgröße */
+    .line1 {
+      font-size: 80px;
+      font-weight: 600;
+      line-height: 1;
+      display: block;
+      white-space: nowrap;
+    }
+
+    /* Zweite Zeile: Größer, um die Breite auszugleichen */
+    .line2 {
+      font-size: 85px; /* Höherer Wert, damit die Zeile genauso breit wird */
+      font-weight: 600;
+      line-height: 1.1;
+      display: block;
+      white-space: nowrap;
+    }
+
+    .emoji {
+      font-family: "Apple Color Emoji", sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <span class="line1">Mein Traum wären</span>
+    <span class="line2">300 Zuschauer <span class="emoji">🥺</span></span>
+  </div>
+
+</body>
+</html>
