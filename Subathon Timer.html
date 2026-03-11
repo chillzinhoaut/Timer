@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      /* Schriftart auf Montserrat umstellen */
+      --font: 'Montserrat', sans-serif;
+      --font-size: 200px;
+      --color-text: #ffffff;
+      /* Kontur auf 0px setzen oder entfernen */
+      --stroke-color: transparent;
+      --stroke-width: 0px;
+      --color-gain: #2ecc71; 
+    }
+
+    body {
+      margin: 0;
+      background: transparent; 
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: var(--font);
+    }
+
+    .timer-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font);
+      font-size: var(--font-size);
+      /* 600 entspricht SemiBold */
+      font-weight: 600;
+      line-height: 1;
+      color: var(--color-text);
+      filter: drop-shadow(0px 8px 4px rgba(0, 0, 0, 0.4));
+    }
+
+    .slot {
+      display: inline-block;
+      position: relative;
+      width: 0.70em; /* Etwas schmaler, da Montserrat anders läuft als Poppins */
+      height: 1.2em;
+      overflow: hidden; 
+      vertical-align: middle;
+      margin: 0 -0.02em; 
+      text-align: center;
+    }
+
+    .slot.colon {
+      width: 0.3em;
+      margin: 0 0.05em;
+      font-family: var(--font);
+    }
+
+    .digit {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font);
+      will-change: transform, opacity, filter;
+      /* Hier wird die Kontur durch die Variablen gesteuert */
+      -webkit-text-stroke: var(--stroke-width) var(--stroke-color);
+      paint-order: stroke fill;
+    }
+
+    .slot.is-add .digit {
+      color: var(--color-gain) !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="timer-container" id="timeDisplay">
+    <span class="slot"><span class="digit">0</span></span>
+    <span class="slot"><span class="digit">0</span></span>
+    <span class="slot colon">:</span>
+    <span class="slot"><span class="digit">0</span></span>
+    <span class="slot"><span class="digit">0</span></span>
+  </div>
+
+<script>
+  const WEBSOCKET_URL = 'ws://192.168.178.23:8080/';
+  const displayEl = document.getElementById("timeDisplay");
+  
+let targetTimestamp = 0;
+let lastStr = ""; 
+let displayedSeconds = -1;
+
+  let visualDiff = 0;
+  const lerpSpeed = 0.18; 
+
+  const pad2 = (n) => String(n).padStart(2, "0");
+
+  function formatTime(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    
+    if (h > 0) return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+    return `${pad2(m)}:${pad2(s)}`;
+  }
+
+  function buildInitial(str) {
+    displayEl.innerHTML = "";
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      if (c === ":") {
+        const colon = document.createElement("span");
+        colon.className = "slot colon";
+        colon.textContent = ":";
+        displayEl.appendChild(colon);
+      } else {
+        const slot = document.createElement("span");
+        slot.className = "slot";
+        const digit = document.createElement("span");
+        digit.className = "digit";
+        digit.textContent = c;
+        slot.appendChild(digit);
+        displayEl.appendChild(slot);
+      }
+    }
+    lastStr = str;
+  }
+
+  function animateTo(newStr, dir = "down", highlight = false) {
+    if (newStr.length !== lastStr.length) {
+      buildInitial(newStr);
+      return;
+    }
+
+    const sign = (dir === "down") ? 1 : -1;
+    const travel = 45; 
+    const blurHi = 4;  
+    const dur = 600;
+
+    const slots = displayEl.querySelectorAll(".slot:not(.colon)");
+    let slotIdx = 0;
+
+    for (let i = 0; i < newStr.length; i++) {
+      if (newStr[i] === ":") continue;
+      
+      const currentSlot = slots[slotIdx];
+      const oldChar = lastStr[i];
+      const newChar = newStr[i];
+
+      if (oldChar !== newChar) {
+        const existingDigits = currentSlot.querySelectorAll(".digit");
+        existingDigits.forEach((dg, idx) => {
+           if(idx < existingDigits.length - 1) dg.remove();
+        });
+
+        const oldDigit = currentSlot.querySelector(".digit");
+        const nextDigit = document.createElement("span");
+        nextDigit.className = "digit";
+        nextDigit.textContent = newChar;
+        nextDigit.style.zIndex = "2";
+        currentSlot.appendChild(nextDigit);
+
+        if (highlight) {
+          currentSlot.classList.add("is-add");
+          setTimeout(() => currentSlot.classList.remove("is-add"), 800);
+        }
+
+        if (oldDigit) {
+            oldDigit.style.zIndex = "1";
+            oldDigit.animate([
+                { transform: 'translateY(0%)', opacity: 1, filter: 'blur(0px)' },
+                { transform: `translateY(${sign * travel}%)`, opacity: 0, filter: `blur(${blurHi}px)` }
+            ], { duration: dur, easing: "cubic-bezier(.2,.9,.2,1)", fill: "forwards" });
+        }
+
+        const anim = nextDigit.animate([
+          { transform: `translateY(${-sign * travel}%)`, opacity: 0, filter: `blur(${blurHi}px)` },
+          { transform: 'translateY(0%)', opacity: 1, filter: 'blur(0px)' }
+        ], { duration: dur, easing: "cubic-bezier(.2,.9,.2,1)", fill: "forwards" });
+
+        anim.finished.then(() => {
+          if (oldDigit && oldDigit.isConnected) oldDigit.remove();
+        });
+      }
+      slotIdx++;
+    }
+    lastStr = newStr;
+  }
+
+  function connect() {
+    const ws = new WebSocket(WEBSOCKET_URL);
+    
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ request: "GetGlobals", id: "initPoll" }));
+      setInterval(() => {
+        if(ws.readyState === WebSocket.OPEN)
+          ws.send(JSON.stringify({ request: "GetGlobals", id: "poll" }));
+      }, 2000);
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      let newEnd = 0;
+      if (data.id === "live_push") newEnd = Number(data.target);
+      if (data.variables && data.variables.subathonEndTime) {
+          newEnd = Number(data.variables.subathonEndTime.value);
+      }
+      if (newEnd > 0) {
+        targetTimestamp = newEnd;
+        if (visualDiff === 0) visualDiff = targetTimestamp - Date.now();
+      }
+    };
+    ws.onclose = () => setTimeout(connect, 3000);
+  }
+
+function update() {
+  const now = Date.now();
+  
+  // Echte Sekunden berechnen (Immer aufrunden, das ist der Schlüssel!)
+  const realSeconds = targetTimestamp > 0 ? Math.ceil(Math.max(0, targetTimestamp - now) / 1000) : 0;
+
+  // Einmaliges Laden beim Start
+  if (displayedSeconds === -1 && realSeconds > 0) {
+    displayedSeconds = realSeconds;
+    buildInitial(formatTime(displayedSeconds * 1000));
+  }
+
+  // Wenn sich die Sekundenanzeige ändern muss...
+  if (displayedSeconds !== -1 && realSeconds !== displayedSeconds) {
+    
+    // ... und die neue Zeit GRÖSSER ist (Instant Follow-Animation!)
+    if (realSeconds > displayedSeconds) {
+      displayedSeconds = realSeconds;
+      const currentStr = formatTime(displayedSeconds * 1000);
+      
+      if (!displayEl.querySelector(".slot")) buildInitial(currentStr);
+      animateTo(currentStr, "up", true); // Grün und nach oben rollen
+      
+    } 
+    // ... und die neue Zeit KLEINER ist (Flüssiges Runterzählen)
+    else {
+      displayedSeconds = realSeconds;
+      const currentStr = formatTime(displayedSeconds * 1000);
+      
+      if (!displayEl.querySelector(".slot")) buildInitial(currentStr);
+      animateTo(currentStr, "down", false); // Nach unten rollen
+    }
+  }
+
+  requestAnimationFrame(update);
+}
+
+  connect();
+  update();
+</script>
+</body>
+</html>
